@@ -1,6 +1,7 @@
 import numpy as np
 from pytictoc import TicToc
 import pickle
+import sys
 import os
 import warnings
 warnings.filterwarnings("ignore")
@@ -16,7 +17,7 @@ def spatialEM(sn):
     @author: Sanjana Girish """
 
     em = {}
-    tictoc = TicToc()
+    
     x=1
     # parameters to set
     nChans = 8  # No. of channels
@@ -40,7 +41,6 @@ def spatialEM(sn):
     basisSet = init_TF(nChans, nBins)
 
     # ------------------------- Grab Data ------------------------------------
-
     eeg_path = os.path.dirname(os.getcwd())+f"\\EEG\\{sn}_EEGfilt"
     pos_bin_path = os.path.dirname(os.getcwd())+f"\\data\\{sn}_Behavior.mat"
 
@@ -55,93 +55,82 @@ def spatialEM(sn):
 
     nTrials = posBin.size  # No. of good trials
     
-    
     # ------------------------------------------------------------------------
 
     print("Preallocating matrices ... ")
     # Preallocate Matrices
 
-    tf_evoked = np.empty((nFreqs, nIter, nSamps, nBlocks, nChans))
-    tf_total = tf_evoked
-    C2_evoked = np.empty((nFreqs, nIter, nSamps, nBlocks, nBins, nChans))
-    C2_total = C2_evoked
+    tf_total = np.empty((nIter, nSamps, nBlocks, nChans))
+    C2_total = np.empty((nIter, nSamps, nBlocks, nBins, nChans))
 
-    # Loop through each frequency
-    for f in range(nFreqs):
+    # Data from eeg_evoked and eeg_total: data[x, y, z]
+    # 0 <= x <= 1198 0 <= y <= 19 0 <= z <= 687
 
-        tictoc.tic()  # start timing frequency loop
-        print(f"Frequency {f+1} out of {nFreqs}")
+    """fig, axs = plt.subplots(20)
+    for i in range(len(axs)):
+        axs[i].plot(eeg.eeg_total()[0, i])
+    
+    fig.show()"""
+    # Loop through each iteration
+    for iter in range(nIter):
+        print(f"Processing {iter+1} out of {nIter} iterations")
 
-        # Data from fdata_evoked and fdata_total: fdata[x, y, z]
-        # 0 <= x <= 1198 0 <= y <= 19 0 <= z <= 687
-        fdata_evoked = eeg.eeg_evoked
-        fdata_total = eeg.eeg_total()
-
-        # Loop through each iteration
-        for iter in range(nIter):
-            print(f"Processing {iter+1} out of {nIter} iterations")
-
-            blockDat_evoked, blockDat_total = make_blocks(tois=[toi_start, toi_end],
-                                                            eeg=eeg,
-                                                            posBin=posBin,
-                                                            nBlocks=nBlocks,
-                                                            nTrials=nTrials)
-            # ----------------------------------------------------------------------------------------
-            posBins = np.array([range(1, nBins + 1)])
+        blockDat_evoked, blockDat_total = make_blocks(tois=[toi_start, toi_end],
+                                                        eeg=eeg,
+                                                        posBin=posBin,
+                                                        nBlocks=nBlocks,
+                                                        nTrials=nTrials)
+        # ----------------------------------------------------------------------------------------
+        posBins = np.array([range(1, nBins + 1)])
+        
+        for samp in range(len(times)):
+            t = times[samp]
             
-            for samp in range(len(times)):
-                t = times[samp]
+            # grab data for timepoint t
+            de = np.squeeze(blockDat_evoked[:, :, :, (t+1000)//4]).reshape((nBlocks*nBins, nElectrodes))  # evoked data
+            dt = np.squeeze(blockDat_total[:, :, :, (t+1000)//4]).reshape((nBlocks*nBins, nElectrodes)) # total data
+            # Data from de and dt: 24 x 20
+            # Do forward model
+            for i in range(nBlocks):
+                trnl = np.tile(np.array(range(nBins)), nBlocks-1)  # training labels
+                tstl = np.array(range(nBins))  # test labels
+                c = basisSet[np.concatenate((trnl, tstl)), :]
+                trni = (np.array(range(nBlocks*nBins))//nBins)!=i
+                tsti = (np.array(range(nBlocks*nBins))//nBins)==i
+                # -------------------------------------------------------------------------------------------------
+                #      Analysis on Total Power
+                # -------------------------------------------------------------------------------------------------
+
+                B1 = dt[trni, :]  # training data
+                B2 = dt[tsti, :]  # test data
+                C1 = c[trni, :]  # predicted channel outputs for training data
+
+                W_calculation = np.linalg.lstsq(C1, B1, rcond=None)  # estimate weight matrix
                 
-                # grab data for timepoint t
-                de = np.squeeze(blockDat_evoked[:, :, :, (t+1000)//4]).reshape((nBlocks*nBins, nElectrodes))  # evoked data
-                dt = np.squeeze(blockDat_total[:, :, :, (t+1000)//4]).reshape((nBlocks*nBins, nElectrodes)) # total data
-                # Data from de and dt: 24 x 20
-                # Do forward model
-                for i in range(nBlocks):
-                    trnl = np.tile(np.array(range(nBins)), nBlocks-1)  # training labels
-                    tstl = np.array(range(nBins))  # test labels
-                    c = basisSet[np.concatenate((trnl, tstl)), :]
-                    trni = (np.array(range(nBlocks*nBins))//nBins)!=i
-                    tsti = (np.array(range(nBlocks*nBins))//nBins)==i
+                W = W_calculation[0]
 
-                    # -------------------------------------------------------------------------------------------------
-                    #      Analysis on Total Power
-                    # -------------------------------------------------------------------------------------------------
+                C2_calculation = np.linalg.lstsq(W.conj().transpose(), B2.conj().transpose(), rcond=None)# estimate channel responses
+            
+                C2 = C2_calculation[0].transpose()
 
-                    B1 = dt[trni, :]  # training data
-                    B2 = dt[tsti, :]  # test data
-                    C1 = c[trni, :]  # predicted channel outputs for training data
-                    W = np.linalg.lstsq(C1, B1, rcond=None)[0]  # estimate weight matrix
-                    
-                    C2 = np.linalg.lstsq(W.conj().transpose(), B2.conj().transpose(), rcond=None)[0].conj().transpose()# estimate channel responses
-                    
-                    # Data from B1: 16 x 20; B2: 8 x 20; C1: 16 x 8; W: 8 x 20;
+                # Data from B1: 16 x 20; B2: 8 x 20; C1: 16 x 8; W: 8 x 20;
+                C2_total[iter, samp, i, :, :] = C2  # save the unshifted channel responses
 
-                    C2_total[f, iter, samp, i, :, :] = C2  # save the unshifted channel responses
-
-                    # shift eegs to common center
-                    n2shift = int(np.ceil(C2.shape[1] / 2))
-                    for ii in range(C2.shape[0]):
-                        shiftInd = np.argmin(abs(posBins - tstl[ii])[0]) + 1
-                        C2[ii, :] = np.roll(C2[ii, :], shiftInd - n2shift - 1)
-
-                    tf_total[f, iter, samp, i, :] = np.mean(C2, axis=0)  # average shifted channel responses
-                    plt.ylim(0, 1)
-                    plt.plot(C2)
-                    plt.title(f"time={t} ms")
-                    plt.legend(['0', '1', '2', '3', '4', '5', '6', '7'])
-                    plt.savefig(f"./Spatial EM Graphs/C2 graphs/{x}.jpeg")
-                    x+=1
-                    plt.clf()
+                # shift eegs to common center
+                n2shift = int(np.ceil(C2.shape[1] / 2))
+                for ii in range(C2.shape[0]):
+                    shiftInd = np.argmin(abs(posBins - tstl[ii])[0])
+                    print(shiftInd)
+                    C2[ii, :] = np.roll(C2[ii, :], shiftInd - n2shift)
                 
-        tictoc.toc()
+                tf_total[iter, samp, i, :] = np.mean(C2, axis=0)  # average shifted channel responses
 
-    """print(C2_total.shape)
+    print(C2_total[0, :, :, :, :].shape)
     fig, ax = plt.subplots()
     plt.grid(False)
-    im = ax.imshow(np.mean(np.mean(C2_total[0, 0, :, :, :, :], axis=3), axis=1).transpose(), interpolation="quadric", aspect="auto")
-    print(type(im))
-    plt.show()"""
+    im = ax.imshow(C2_total[0, :, 0, 0, :].transpose(), aspect="auto", interpolation="quadric")
+    plt.show()
+    plt.clf()
     return em
 
 if __name__ == '__main__':

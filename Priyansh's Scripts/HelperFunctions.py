@@ -158,7 +158,6 @@ def make_blocks(tois, eeg, posBin, nBlocks, nTrials, nBins=8):
                 
     blockDat_total = []
     blockDat_evoked = []
-
     for block in range(nBlocks):
         blockDat_total.append([])
         blockDat_evoked.append([])
@@ -167,8 +166,8 @@ def make_blocks(tois, eeg, posBin, nBlocks, nTrials, nBins=8):
             binSpecific_evoked = shuffeeg_evoked[(shuffBin==i).squeeze(), :, :]
             binSpecific_total = shuffeeg_total[(shuffBin==i).squeeze(), :, :]
             
-            average_evoked = np.mean(np.square(abs(binSpecific_evoked[0:nPerBin])), axis=0) 
-            average_total = np.mean(binSpecific_total[0:nPerBin], axis=0)
+            average_evoked = np.mean(np.square(abs(binSpecific_evoked[nPerBin*block:nPerBin*(block+1)])), axis=0) 
+            average_total = np.mean(binSpecific_total[nPerBin*block:nPerBin*(block+1)], axis=0)
             
             blockDat_evoked[-1].append(average_evoked)
             blockDat_total[-1].append(average_total)
