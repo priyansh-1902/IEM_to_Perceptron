@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.io import loadmat
 import pickle
-from scipy.io import loadmat
 import numpy as np
 
 
@@ -76,7 +75,7 @@ class EEG:
         return self
 
     def eeg_total(self):
-        return np.abs(self.eeg_evoked)
+        return np.square(np.abs(self.eeg_evoked))
 
 
     def save_data(self, path):
@@ -114,10 +113,7 @@ def load_eeg_and_bin(eeg_path, pos_bin_path,
     eeg = EEG()
     eeg.load(eeg_path)
 
-    if drop_electrodes == True:
-        eeg.drop_electrodes()
-    if drop_artifacts == True:
-        eeg.drop_artifacts()
+    #may need to drop artifacts and electrodes
 
     posBin = load_pos_bin(pos_bin_path)
     

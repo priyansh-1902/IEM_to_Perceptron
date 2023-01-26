@@ -5,6 +5,7 @@ import sys
 import os
 import warnings
 warnings.filterwarnings("ignore")
+import scipy
 
 from matplotlib import pyplot as plt
 from PIL import  ImageGrab
@@ -16,13 +17,10 @@ def spatialEM(sn):
     """ Run spatial encoding model on evoked and total power.
     @author: Sanjana Girish """
 
-    em = {}
-    
-    x=1
     # parameters to set
     nChans = 8  # No. of channels
     nBins = nChans  # No. of stimulus bins
-    nIter = 1  # No. of iterations
+    nIter = 10  # No. of iterations
     nBlocks = 3  # No. of blocks for cross-validation
     frequencies = np.array([[8, 12]])  # frequency bands to analyze
     bands = {'Alpha'}
@@ -87,7 +85,6 @@ def spatialEM(sn):
             t = times[samp]
             
             # grab data for timepoint t
-            de = np.squeeze(blockDat_evoked[:, :, :, (t+1000)//4]).reshape((nBlocks*nBins, nElectrodes))  # evoked data
             dt = np.squeeze(blockDat_total[:, :, :, (t+1000)//4]).reshape((nBlocks*nBins, nElectrodes)) # total data
             # Data from de and dt: 24 x 20
             # Do forward model
@@ -105,11 +102,11 @@ def spatialEM(sn):
                 B2 = dt[tsti, :]  # test data
                 C1 = c[trni, :]  # predicted channel outputs for training data
 
-                W_calculation = np.linalg.lstsq(C1, B1, rcond=None)  # estimate weight matrix
+                W_calculation = np.linalg.lstsq(C1, B1, rcond=None)  # estimate weight matrix C1*W = B1
                 
                 W = W_calculation[0]
 
-                C2_calculation = np.linalg.lstsq(W.conj().transpose(), B2.conj().transpose(), rcond=None)# estimate channel responses
+                C2_calculation = np.linalg.lstsq(W.transpose(), B2.transpose(), rcond=None)# estimate channel responses W'*C2'=B2'
             
                 C2 = C2_calculation[0].transpose()
 
@@ -120,18 +117,25 @@ def spatialEM(sn):
                 n2shift = int(np.ceil(C2.shape[1] / 2))
                 for ii in range(C2.shape[0]):
                     shiftInd = np.argmin(abs(posBins - tstl[ii])[0])
-                    print(shiftInd)
                     C2[ii, :] = np.roll(C2[ii, :], shiftInd - n2shift)
                 
                 tf_total[iter, samp, i, :] = np.mean(C2, axis=0)  # average shifted channel responses
 
-    print(C2_total[0, :, :, :, :].shape)
+
+    print(np.mean(np.mean(tf_total, 0), 1).shape)
     fig, ax = plt.subplots()
     plt.grid(False)
-    im = ax.imshow(C2_total[0, :, 0, 0, :].transpose(), aspect="auto", interpolation="quadric")
+    tf = np.mean(np.mean(tf_total, 0), 1).transpose()
+    im = ax.imshow(tf, aspect="auto", interpolation="quadric")
+    plt.title("Priyansh's script")
+    plt.legend()
     plt.show()
     plt.clf()
-    return em
+    #scipy.io.savemat('1_PYSpatialTF.mat', dict(tfs=tf_total, times=times))
+
+    
+    
 
 if __name__ == '__main__':
     spatialEM(1)
+    
