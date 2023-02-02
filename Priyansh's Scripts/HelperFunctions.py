@@ -93,10 +93,10 @@ def init_TF(nChans, nBins):
     cCenters = np.linspace(0, 2 * np.pi - 2 * np.pi / nChans, nChans)
     cCenters = np.rad2deg(cCenters)
     pred = np.sin(0.5 * x) ** sinPower  # hypothetical channel responses
-    pred = np.roll(pred, -5)  # shift the initial basis function
+    pred = np.roll(pred, -3)  # shift the initial basis function
     basisSet = np.empty((nChans, nBins,))
-    for c in range(1, nChans + 1):
-        basisSet[c - 1, :] = np.roll(pred,c) 
+    for c in range(nChans):
+        basisSet[c - 1, :] = np.roll(pred,-c) 
 
     return basisSet
 
@@ -144,7 +144,7 @@ def make_blocks(tois, eeg, posBin, nBlocks, nTrials, nBins=8):
     nPerBin = int(minCnt / nBlocks)
 
     # shuffle trials
-    shuffInd = np.array([np.random.permutation(nTrials)]).transpose()  # create shuffle index
+    shuffInd = np.array([np.random.permutation(nTrials)]).transpose()#np.arange(nTrials)#np.array([np.random.permutation(nTrials)]).transpose()  # create shuffle index
     
     shuffBin = posBin[shuffInd]  # shuffle trial order
     shuffeeg_evoked = eeg.eeg_evoked[shuffInd.squeeze(), :, :]
@@ -161,7 +161,7 @@ def make_blocks(tois, eeg, posBin, nBlocks, nTrials, nBins=8):
             
             binSpecific_evoked = shuffeeg_evoked[(shuffBin==i).squeeze(), :, :]
             binSpecific_total = shuffeeg_total[(shuffBin==i).squeeze(), :, :]
-            
+
             average_evoked = np.mean(np.square(abs(binSpecific_evoked[nPerBin*block:nPerBin*(block+1)])), axis=0) 
             average_total = np.mean(binSpecific_total[nPerBin*block:nPerBin*(block+1)], axis=0)
             

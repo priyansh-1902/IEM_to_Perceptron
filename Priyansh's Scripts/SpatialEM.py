@@ -12,17 +12,18 @@ from PIL import  ImageGrab
 
 from HelperFunctions import init_TF, load_eeg_and_bin, make_blocks, EEG
 
+np.random.seed(1000)
 
-def spatialEM(sn):
+def spatialEM(sn, nIter):
     """ Run spatial encoding model on evoked and total power.
     @author: Sanjana Girish """
 
     # parameters to set
     nChans = 8  # No. of channels
     nBins = nChans  # No. of stimulus bins
-    nIter = 10  # No. of iterations
+    
     nBlocks = 3  # No. of blocks for cross-validation
-    frequencies = np.array([[8, 12]])  # frequency bands to analyze
+    frequencies = np.array([8, 12])  # frequency bands to analyze
     bands = {'Alpha'}
     times = np.array([range(-500, 1249, 4)]).squeeze()  # timepoints of interest (range:exclusive)
 
@@ -45,7 +46,8 @@ def spatialEM(sn):
     # Data from posBin: posBin[x, 0] where 0 <= x <= 1367
     # Data from eegs: eegs[x, y, x] where 0<=x<=1198 0<=y<=19 0<=z<=687
     eeg, posBin = load_eeg_and_bin(eeg_path, pos_bin_path)
-    
+
+
     # Data from tois and toisRange: toisRange[0, x] where 0 <= x <= 687
     toisRange = np.arange(int(eeg.preTime), int(eeg.postTime + 1), 4)
     tois = 1 * np.isin(toisRange, times)
@@ -69,6 +71,7 @@ def spatialEM(sn):
         axs[i].plot(eeg.eeg_total()[0, i])
     
     fig.show()"""
+    
     # Loop through each iteration
     for iter in range(nIter):
         print(f"Processing {iter+1} out of {nIter} iterations")
@@ -86,6 +89,7 @@ def spatialEM(sn):
             
             # grab data for timepoint t
             dt = np.squeeze(blockDat_total[:, :, :, (t+1000)//4]).reshape((nBlocks*nBins, nElectrodes)) # total data
+            
             # Data from de and dt: 24 x 20
             # Do forward model
             for i in range(nBlocks):
@@ -97,27 +101,34 @@ def spatialEM(sn):
                 # -------------------------------------------------------------------------------------------------
                 #      Analysis on Total Power
                 # -------------------------------------------------------------------------------------------------
-
+                
                 B1 = dt[trni, :]  # training data
                 B2 = dt[tsti, :]  # test data
                 C1 = c[trni, :]  # predicted channel outputs for training data
 
+                
                 W_calculation = np.linalg.lstsq(C1, B1, rcond=None)  # estimate weight matrix C1*W = B1
                 
                 W = W_calculation[0]
-
+                    
+                
                 C2_calculation = np.linalg.lstsq(W.transpose(), B2.transpose(), rcond=None)# estimate channel responses W'*C2'=B2'
             
                 C2 = C2_calculation[0].transpose()
-
+                
                 # Data from B1: 16 x 20; B2: 8 x 20; C1: 16 x 8; W: 8 x 20;
                 C2_total[iter, samp, i, :, :] = C2  # save the unshifted channel responses
 
+                
                 # shift eegs to common center
                 n2shift = int(np.ceil(C2.shape[1] / 2))
-                for ii in range(C2.shape[0]):
-                    shiftInd = np.argmin(abs(posBins - tstl[ii])[0])
-                    C2[ii, :] = np.roll(C2[ii, :], shiftInd - n2shift)
+                shiftInd = -4
+                for ii in range(1, C2.shape[0]+1):
+                    #shiftInd = np.argmin(abs(posBins - tstl[ii-1])[0])
+                    C2[ii-1, :] = np.roll(C2[ii-1, :], shiftInd)
+                    shiftInd += 1
+
+                
                 
                 tf_total[iter, samp, i, :] = np.mean(C2, axis=0)  # average shifted channel responses
 
@@ -131,11 +142,11 @@ def spatialEM(sn):
     plt.legend()
     plt.show()
     plt.clf()
-    #scipy.io.savemat('1_PYSpatialTF.mat', dict(tfs=tf_total, times=times))
+    scipy.io.savemat(f'{sn}_PYSpatialTF.mat', dict(tfs=tf_total, times=times))
 
     
     
 
 if __name__ == '__main__':
-    spatialEM(1)
+    spatialEM(sys.argv[1], int(sys.argv[2]))
     

@@ -2,7 +2,7 @@ function plotCTFs
 % Fig 2c in Foster et al. Psych Science
 
 % specify subjects to plot
-subs = [1];%,7,8,9,10,11,12,14,15,16,17,18,19,20];
+subs = [3];%,7,8,9,10,11,12,14,15,16,17,18,19,20];
 nSubs = length(subs);
 
 root = pwd; out = 'AnalysisScripts';
@@ -54,9 +54,9 @@ set(gca,'LineWidth',1,'TickDir','out');
 set(gca,'FontSize',fs)
 set(gca,'FontName','Arial Narrow')
 view(view3d)
-axis([x(1) x(end) em.time(1) em.time(end) lim]);
+axis([x(1) x(end) times(1) times(end) lim]);
 set(gca,'XTick',[-180:90:180])
-set(gca,'YTick',[-500:500:2000])
+set(gca,'YTick',[-500:100:2000])
 % title('Total Power','FontSize',ts)
 xlabel({'Channel Offset'});
 ylabel('Time (ms)');
