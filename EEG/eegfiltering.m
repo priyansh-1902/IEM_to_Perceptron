@@ -4,7 +4,7 @@ Fs = 250;
 freqs = [8 12];
 nFreqs = size(freqs,1);
 
-for i = 1:3
+for i = 1:20
     %eeg.total = eeg.data;
     dataFile = [num2str(i) '_EEG.mat']; %#ok<ST2NM> 
     load(dataFile)

@@ -57,7 +57,7 @@ view(view3d)
 axis([x(1) x(end) times(1) times(end) lim]);
 set(gca,'XTick',[-180:90:180])
 set(gca,'YTick',[-500:100:2000])
-% title('Total Power','FontSize',ts)
+title('SpatialEM Model','FontSize',ts)
 xlabel({'Channel Offset'});
 ylabel('Time (ms)');
 set(get(gca,'xlabel'),'rotation',90); %where angle is in degrees

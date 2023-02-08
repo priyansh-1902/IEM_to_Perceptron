@@ -6,36 +6,45 @@ import os
 import warnings
 warnings.filterwarnings("ignore")
 import scipy
+import time
+import torch
 import matplotlib.pyplot as plt
+
+from Perceptron import train_perceptron
 
 from HelperFunctions import init_TF, load_eeg_and_bin, make_blocks
 
 np.random.seed(1000)
+torch.manual_seed(0)
 
-def spatialEM(sn):
+
+def spatialEM(sn, non_linearity=False):
     """ Run spatial encoding model on evoked and total power.
     @author: Sanjana Girish """
-
+    if non_linearity:
+        print('Running Perceptron EM with ReLU')
+    else:
+        print('Running Perceptron EM without non-linearity')
     # parameters to set
     nChans = 8  # No. of channels
     nBins = nChans  # No. of stimulus bins
     
-
-    toi_start = 0
-    toi_end = 704
-
     nBlocks = 3  # No. of blocks for cross-validation
     frequencies = np.array([8, 12])  # frequency bands to analyze
     bands = {'Alpha'}
-    times = np.array([range(toi_start, toi_end, 4)]).squeeze()  # timepoints of interest (range:exclusive)
+    
 
     window = 4
     Fs = 250
     nFreqs = np.shape(frequencies)[0]
     nElectrodes = 20
-    nSamps = len(times)
     nIter = 10
-    
+
+    toi_start = 0
+    toi_end = 704
+    times = np.array([range(toi_start, toi_end, 4)]).squeeze()  # timepoints of interest (range:exclusive)
+    nSamps = len(times)
+
     # Specify basis set
     basisSet = init_TF(nChans, nBins)
 
@@ -66,8 +75,9 @@ def spatialEM(sn):
     # 0 <= x <= 1198 0 <= y <= 19 0 <= z <= 687
     
     # Loop through each iteration
+    start_time = time.time()
     for iter in range(nIter):
-        print(f"Processing {iter+1} out of {nIter} iterations")
+        print(f"\nProcessing {iter+1} out of {nIter} iterations at time {time.time()-start_time}")
 
         _, blockDat_total = make_blocks(tois=[toi_start, toi_end],
                                                         eeg=eeg,
@@ -77,7 +87,9 @@ def spatialEM(sn):
         # ----------------------------------------------------------------------------------------        
         for samp in range(len(times)):
             t = times[samp]
-            
+            sys.stdout.write('\r                                                                   ')
+            sys.stdout.write(f"\rTime = {t}")
+            sys.stdout.flush()
             # grab data for timepoint t
             dt = np.squeeze(blockDat_total[:, :, :, (t+1000)//4]).reshape((nBlocks*nBins, nElectrodes)) # total data
             
@@ -97,10 +109,11 @@ def spatialEM(sn):
                 B2 = dt[tsti, :]  # test data
                 C1 = c[trni, :]  # predicted channel outputs for training data
                 
-                W_calculation = np.linalg.lstsq(C1, B1, rcond=None)  # estimate weight matrix C1*W = B1
+                W_calculation = train_perceptron(B1=B1, C1=C1, non_linearity=non_linearity, verbose=False)  # estimate weight matrix C1*W = B1
                 
-                W = W_calculation[0]
-                
+                W = W_calculation
+                print(B1)
+                return
                 C2_calculation = np.linalg.lstsq(W.transpose(), B2.transpose(), rcond=None)# estimate channel responses W'*C2'=B2'
             
                 C2 = C2_calculation[0].transpose()
@@ -116,19 +129,27 @@ def spatialEM(sn):
                     shiftInd += 1
 
                 tf_total[iter, samp, i, :] = np.mean(C2, axis=0)  # average shifted channel responses
+                
+
     fig, ax = plt.subplots()
     plt.grid(False)
     tf = np.mean(np.mean(tf_total, 0), 1).transpose()
     im = ax.imshow(tf, aspect="auto", interpolation="quadric")
-    plt.title("Priyansh's script")
-    plt.savefig('SpatialEM.jpeg')
+    if non_linearity:
+        title = "Perceptron with ReLU"
+    else:
+        title = "Perceptron without ReLU"
+
+    plt.title(title)
     plt.legend()
     plt.show()
-    plt.clf()            
+    plt.clf()
 
-
-    
-    scipy.io.savemat(f'PySpatialTFs/{sn}_PYSpatialTF.mat', dict(tfs=tf_total, times=times))
+    if non_linearity:
+        path = f'PyNonLinearPerceptronTFs/{sn}_PYPerceptronTF.mat'
+    else:
+        path = f'PyLinearPerceptronTFs/{sn}_PYPerceptronTF.mat'
+    scipy.io.savemat(path, dict(tfs=tf_total, times=times))
 
     
     
@@ -136,5 +157,6 @@ def spatialEM(sn):
 if __name__ == '__main__':
     v = [1,2,3,7,8,9,10,11,12,14,15,16,17,18,19,20]
     for i in [3]:
-        spatialEM(str(i))
+        #spatialEM(str(i), non_linearity=False)
+        spatialEM(str(i), non_linearity=True)
     

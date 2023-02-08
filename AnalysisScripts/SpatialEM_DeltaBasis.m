@@ -14,13 +14,13 @@ function SpatialEM(sn)
 rng shuffle % get new random seed based on current time
 em.randSeed = rng; % save the random seed to the em structure
 
-name = '_SpatialTF.mat'; % name of files to be saved
+name = '_SpatialTF_DeltaBasis.mat'; % name of files to be saved
 
 % setup directories
 root = pwd; out = 'AnalysisScripts';
-dRoot = [root(1:end-length(out)),'data\'];
-eRoot = [root(1:end-length(out)),'EEG\'];
-% bRoot = [root(1:end-length(out)),'Behavior/'];
+dRoot = [root(1:end-length(out)),'Data/'];
+eRoot = [root(1:end-length(out)),'EEG/'];
+bRoot = [root(1:end-length(out)),'Behavior/'];
 
 % parameters to set
 em.nChans = 8; % # of channels
@@ -47,26 +47,18 @@ nSamps = length(em.time);
 Fs = em.Fs;
 
 % Specify basis set
-em.sinPower = 7;
-em.x = linspace(0, 2*pi-2*pi/nBins, nBins);
-em.cCenters = linspace(0, 2*pi-2*pi/nChans, nChans);
-em.cCenters = rad2deg(em.cCenters);
-pred = sin(0.5*em.x).^em.sinPower; % hypothetical channel response
-pred = circshift(pred,5); % shift the initial basis function
-basisSet = nan(nChans,nBins);
-for c = 1:nChans
-    basisSet(c,:) = circshift(pred,-c); % generate circularly shifted basis functions
-end
+basisSet = eye(8);
 em.basisSet = basisSet; % save basis set to data structure
+
 % Grab data------------------------------------------------------------
 
 % Get position bin index from behavior file
-fName = ['../data/' num2str(sn) '_Behavior.mat']; load(fName);
+fName = [dRoot, num2str(sn), '_Behavior.mat']; load(fName);
 em.posBin = ind.cueBin'; % add to fm structure so it's saved
 posBin = em.posBin;
 
 % Get EEG data
-fName = ['../EEG/' num2str(sn) '_EEG.mat']; load(fName);
+fName = [eRoot, num2str(sn), '_EEG.mat']; load(fName);
 eegs = eeg.data(:,1:20,:); % get scalp EEG (drop EOG electrodes)
 artInd = eeg.arf.artIndCleaned.'; % grab artifact rejection index
 tois = ismember(eeg.preTime:4:eeg.postTime,em.time); nTimes = length(tois); % index time points for analysis.
@@ -93,16 +85,13 @@ for f = 1:nFreqs
     fdata_evoked = nan(nTrials,nElectrodes,nTimes);
     fdata_total = nan(nTrials,nElectrodes,nTimes);
     parfor c = 1:nElectrodes
-        %fdata_evoked(:,c,:) = hilbert(eegfilt(squeeze(eegs(:,c,:)),Fs,freqs(f,1),freqs(f,2))')';
-        %fdata_total(:,c,:) = abs(hilbert(eegfilt(squeeze(eegs(:,c,:)),Fs,freqs(f,1),freqs(f,2))')').^2; % instantaneous power calculated here for induced activity.
+        fdata_evoked(:,c,:) = hilbert(eegfilt(squeeze(eegs(:,c,:)),Fs,freqs(f,1),freqs(f,2))')';
+        fdata_total(:,c,:) = abs(hilbert(eegfilt(squeeze(eegs(:,c,:)),Fs,freqs(f,1),freqs(f,2))')').^2; % instantaneous power calculated here for induced activity.
     end
-    load(['..\EEG\' num2str(sn) '_EEGfilt.mat']);
-    fdata_evoked = eeg.evoked(:, 1:nElectrodes, :);
-    fdata_total = abs(eeg.evoked(:, 1:nElectrodes, :)).^2;
     
     % Loop through each iteration
     for iter = 1:nIter
-        fprintf('Iteration %d out of %d\n', iter, nIter)
+        
         %--------------------------------------------------------------------------
         % Assign trials to blocks (such that trials per position are
         % equated within blocks)
@@ -120,9 +109,9 @@ for f = 1:nFreqs
         
         minCnt = min(binCnt); % # of trials for position bin with fewest trials
         nPerBin = floor(minCnt/nBlocks); % max # of trials such that the # of trials for each bin can be equated within each block
-
+        
         % shuffle trials
-        shuffInd = linspace(1,nTrials, nTrials);%randperm(nTrials)'; % create shuffle index
+        shuffInd = randperm(nTrials)'; % create shuffle index
         shuffBin = posBin(shuffInd); % shuffle trial order
         
         % take the 1st nPerBin x nBlocks trials for each position bin.
@@ -151,7 +140,6 @@ for f = 1:nFreqs
         bCnt = 1;
         for ii = 1:nBins
             for iii = 1:nBlocks
-                shuffInd(posBin==posBins(ii) & blocks==iii);
                 blockDat_evoked(bCnt,:,:) = abs(squeeze(mean(fdata_evoked(posBin==posBins(ii) & blocks==iii,:,tois),1))).^2;
                 blockDat_total(bCnt,:,:) = squeeze(mean(fdata_total(posBin==posBins(ii) & blocks==iii,:,tois),1));
                 labels(bCnt) = ii;
@@ -161,13 +149,12 @@ for f = 1:nFreqs
             end
         end
         
-        for t = 1:nSamps
-           
+        parfor t = 1:nSamps
+            
             % grab data for timepoint t
             toi = ismember(times,times(t)-em.window/2:times(t)+em.window/2); % time window of interest
-       
             de = squeeze(mean(blockDat_evoked(:,:,toi),3)); % evoked data
-            dt = squeeze(mean(blockDat_total(:,:,toi),3));  % total datasize(dt)
+            dt = squeeze(mean(blockDat_total(:,:,toi),3));  % total data
             
             % Do forward model
             
@@ -175,18 +162,15 @@ for f = 1:nFreqs
                 
                 trnl = labels(blockNum~=i); % training labels
                 tstl = labels(blockNum==i); % test labels
-
+                
                 %-----------------------------------------------------%
                 % Analysis on Evoked Power                            %
                 %-----------------------------------------------------%
                 B1 = de(blockNum~=i,:);    % training data
-                
-                
                 B2 = de(blockNum==i,:);    % test data
                 C1 = c(blockNum~=i,:);     % predicted channel outputs for training data
-                
-                W = C1\B1;          % estimate weight matrix  C1*W = B1
-                C2 = (W'\B2')';     % estimate channel responses    C2*W = B2
+                W = C1\B1;          % estimate weight matrix
+                C2 = (W'\B2')';     % estimate channel responses
                 
                 C2_evoked(f,iter,t,i,:,:) = C2; % save the unshifted channel responses
                 
@@ -194,7 +178,7 @@ for f = 1:nFreqs
                 n2shift = ceil(size(C2,2)/2);
                 for ii=1:size(C2,1)
                     [~, shiftInd] = min(abs(posBins-tstl(ii)));
-                    C2(ii,:) = circshift(C2(ii,:), shiftInd-n2shift-1);
+                    C2(ii,:) = wshift('1D', C2(ii,:), shiftInd-n2shift-1);
                 end
                 
                 tf_evoked(f,iter,t,i,:) = mean(C2,1); % average shifted channel responses
@@ -202,16 +186,9 @@ for f = 1:nFreqs
                 %-----------------------------------------------------%
                 % Analysis on Total Power                             %
                 %-----------------------------------------------------%
-                
                 B1 = dt(blockNum~=i,:);    % training data
-
-                idx = [linspace(1, 15, 8) linspace(2, 16, 8)];
-                B1 = B1(idx, :);
-
                 B2 = dt(blockNum==i,:);    % test data
                 C1 = c(blockNum~=i,:);     % predicted channel outputs for training data
-                
-                C1 = C1(idx, :);
                 W = C1\B1;          % estimate weight matrix
                 C2 = (W'\B2')';     % estimate channel responses
                 
@@ -221,11 +198,10 @@ for f = 1:nFreqs
                 n2shift = ceil(size(C2,2)/2);
                 for ii=1:size(C2,1)
                     [~, shiftInd] = min(abs(posBins-tstl(ii)));
-                    C2(ii,:) = circshift(C2(ii,:), shiftInd-n2shift-1);
+                    C2(ii,:) = wshift('1D', C2(ii,:), shiftInd-n2shift-1);
                 end
-
-                tf_total(f,iter,t,i,:) = mean(C2,1); % average shifted channel responses
                 
+                tf_total(f,iter,t,i,:) = mean(C2,1); % average shifted channel responses
                 %-----------------------------------------------------%
                 
             end
@@ -234,7 +210,7 @@ for f = 1:nFreqs
     toc % stop timing the frequency loop
 end
 
-fName = [num2str(sn),name];
+fName = [dRoot,num2str(sn),name];
 em.C2.evoked = C2_evoked;
 em.C2.total = C2_total;
 em.tfs.evoked = tf_evoked;
