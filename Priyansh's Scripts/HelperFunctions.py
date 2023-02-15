@@ -2,7 +2,7 @@ import numpy as np
 from scipy.io import loadmat
 import pickle
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 class art:
     def __init__(self):
@@ -92,12 +92,13 @@ def init_TF(nChans, nBins):
     x = np.linspace(0, 2 * np.pi - 2 * np.pi / nBins, nBins)
     cCenters = np.linspace(0, 2 * np.pi - 2 * np.pi / nChans, nChans)
     cCenters = np.rad2deg(cCenters)
-    pred = np.sin(0.5 * x) ** sinPower  # hypothetical channel responses
+    pred = np.abs(np.sin(0.5 * x) ** sinPower) # hypothetical channel responses
     pred = np.roll(pred, -3)  # shift the initial basis function
     basisSet = np.empty((nChans, nBins,))
     for c in range(nChans):
         basisSet[c - 1, :] = np.roll(pred,-c) 
-
+    #plt.plot(basisSet[0])
+    #plt.show()
     return basisSet
 
 
@@ -173,4 +174,36 @@ def make_blocks(tois, eeg, posBin, nBlocks, nTrials, nBins=8):
 
     return blockDat_evoked, blockDat_total
 
+    
+def make_train_test_sets(tois, eeg, basisSet, posBin, nTrials, split_ratio=0.9, nBins=8):
+    toi_start, toi_end = tois
+    times = np.array([range(toi_start, toi_end, 4)]).squeeze()
+
+    eeg_total = eeg.eeg_total()[:, :, (times+1000)//4]
+    
+    # shuffle trials
+    shuffInd = np.array([np.random.permutation(nTrials)]).transpose()#np.arange(nTrials)#np.array([np.random.permutation(nTrials)]).transpose()  # create shuffle index
+    
+    train_posBin = posBin[shuffInd[:int(split_ratio*nTrials)].squeeze()]  # shuffle trial order
+    train_eeg_total = eeg_total[shuffInd[:int(split_ratio*nTrials)].squeeze(), :, :]
+    train_basis_set = basisSet[train_posBin]
+    train_basis_set = train_basis_set# + np.random.normal(0, 0.1, train_basis_set.shape)
+
+    test_posBin = posBin[shuffInd[int(split_ratio*nTrials):].squeeze()]  # shuffle trial order
+    test_eeg_total = eeg_total[shuffInd[int(split_ratio*nTrials):].squeeze(), :, :]
+    test_basis_set = basisSet[test_posBin]
+
+    print(train_eeg_total.shape, test_eeg_total.shape)
+    return train_eeg_total, train_basis_set, test_eeg_total, test_posBin, train_posBin
+
+
+def plot_C2(C2):
+    x, y = 2,4
+    fig, axs = plt.subplots(x, y)
+    for i in range(x):
+        for j in range(y):
+            axs[i, j].plot(C2[(i*x)+j])
+    plt.show()
+    
+                
     

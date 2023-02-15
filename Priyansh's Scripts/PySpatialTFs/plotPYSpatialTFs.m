@@ -32,9 +32,9 @@ for i = 1:nSubs
     t_ctf(i, :, :) = squeeze(mean(mean(tfs(1:10, :, :, :),1),3));
 end
 
-
 % average data across subjects, mirror the -180 channel at +180
 tctf = squeeze(mean(t_ctf,1)); tctf = [tctf tctf(:,1)];
+size(tctf)
 % Setup plot axes
 x = linspace(-180,180,nChans+1);
 nTimes = size(tctf,1); nBins = length(x);

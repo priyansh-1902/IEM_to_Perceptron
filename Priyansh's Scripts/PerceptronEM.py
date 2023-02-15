@@ -18,14 +18,10 @@ np.random.seed(1000)
 torch.manual_seed(0)
 
 
-def spatialEM(sn, non_linearity=False):
+def spatialEM(sn):
     """ Run spatial encoding model on evoked and total power.
     @author: Sanjana Girish """
-    if non_linearity:
-        print('Running Perceptron EM with ReLU')
-    else:
-        print('Running Perceptron EM without non-linearity')
-    # parameters to set
+    print('Running on candidate', sn)
     nChans = 8  # No. of channels
     nBins = nChans  # No. of stimulus bins
     
@@ -65,7 +61,7 @@ def spatialEM(sn, non_linearity=False):
     
     # ------------------------------------------------------------------------
 
-    print("Preallocating matrices ... ")
+    
     # Preallocate Matrices
 
     tf_total = np.empty((nIter, nSamps, nBlocks, nChans))
@@ -75,7 +71,7 @@ def spatialEM(sn, non_linearity=False):
     # 0 <= x <= 1198 0 <= y <= 19 0 <= z <= 687
     
     # Loop through each iteration
-    start_time = time.time()
+    
     for iter in range(nIter):
         print(f"\nProcessing {iter+1} out of {nIter} iterations at time {time.time()-start_time}")
 
@@ -85,7 +81,7 @@ def spatialEM(sn, non_linearity=False):
                                                         nBlocks=nBlocks,
                                                         nTrials=nTrials)
         # ----------------------------------------------------------------------------------------        
-        for samp in range(len(times)):
+        for samp in [150]:
             t = times[samp]
             sys.stdout.write('\r                                                                   ')
             sys.stdout.write(f"\rTime = {t}")
@@ -95,6 +91,8 @@ def spatialEM(sn, non_linearity=False):
             
             # Data from de and dt: 24 x 20
             # Do forward model
+
+            training_losses, training_accs = [], []
             for i in range(nBlocks):
                 trnl = np.tile(np.array(range(nBins)), nBlocks-1)  # training labels
                 tstl = np.array(range(nBins))  # test labels
@@ -106,21 +104,23 @@ def spatialEM(sn, non_linearity=False):
                 # -------------------------------------------------------------------------------------------------
                 
                 B1 = dt[trni, :]  # training data
+                B1 = B1/B1.sum(axis=1)[:, np.newaxis]
                 B2 = dt[tsti, :]  # test data
+                B2 = B2/B2.sum(axis=1)[:, np.newaxis]
                 C1 = c[trni, :]  # predicted channel outputs for training data
                 
-                W_calculation = train_perceptron(B1=B1, C1=C1, non_linearity=non_linearity, verbose=False)  # estimate weight matrix C1*W = B1
+                model, train_loss, train_acc = train_perceptron(B1=B1, C1=C1, non_linearity=False, verbose=False)  # estimate weight matrix C1*W = B1
+                training_losses.append(train_loss)
+                training_accs.append(train_acc)
+                C2 = model(torch.Tensor(B2).cuda()).detach().cpu().numpy()# estimate channel responses W'*C2'=B2'
                 
-                W = W_calculation
-                print(B1)
-                return
-                C2_calculation = np.linalg.lstsq(W.transpose(), B2.transpose(), rcond=None)# estimate channel responses W'*C2'=B2'
-            
-                C2 = C2_calculation[0].transpose()
+                #W_calc = np.linalg.lstsq(B1, C1)
+                #W = W_calc[0]
                 
+                #C2 = np.dot(B2, W)
                 # Data from B1: 16 x 20; B2: 8 x 20; C1: 16 x 8; W: 8 x 20;
                 C2_total[iter, samp, i, :, :] = C2  # save the unshifted channel responses
-                
+                #print(np.argmax(C2, axis=1))
                 # shift eegs to common center
                 shiftInd = -4
                 for ii in range(1, C2.shape[0]+1):
@@ -128,35 +128,44 @@ def spatialEM(sn, non_linearity=False):
                     C2[ii-1, :] = np.roll(C2[ii-1, :], shiftInd)
                     shiftInd += 1
 
-                tf_total[iter, samp, i, :] = np.mean(C2, axis=0)  # average shifted channel responses
-                
+                #print(np.mean(C2, axis=0)/np.linalg.norm(np.mean(C2, axis=0)))
+                tf_total[iter, samp, i, :] = np.mean(C2, axis=0) /np.linalg.norm(np.mean(C2, axis=0)) # average shifted channel responses
+            
+            fig, axs = plt.subplots(3, 2)
+            axs[0,0].plot(np.array(training_accs)[0])
+            axs[0,1].plot(np.array(training_losses)[0, :])
+            axs[1,0].plot(np.array(training_accs)[1])
+            axs[1,1].plot(np.array(training_losses)[1, ])
+            axs[2,0].plot(np.array(training_accs)[2])
+            axs[2,1].plot(np.array(training_losses)[2, :])
+            plt.show()
 
-    fig, ax = plt.subplots()
+
+            #plt.plot(np.mean(np.mean(tf_total, axis=0), axis=1)[0])
+            #plt.show()
+
+    '''fig, ax = plt.subplots()
     plt.grid(False)
     tf = np.mean(np.mean(tf_total, 0), 1).transpose()
     im = ax.imshow(tf, aspect="auto", interpolation="quadric")
-    if non_linearity:
-        title = "Perceptron with ReLU"
-    else:
-        title = "Perceptron without ReLU"
+    title = "Perceptron without ReLU"
 
     plt.title(title)
     plt.legend()
     plt.show()
-    plt.clf()
+    plt.clf()'''
 
-    if non_linearity:
-        path = f'PyNonLinearPerceptronTFs/{sn}_PYPerceptronTF.mat'
-    else:
-        path = f'PyLinearPerceptronTFs/{sn}_PYPerceptronTF.mat'
+    
+    print(f"Completed at {time.time()-start_time}")
+    path = f'PyLinearPerceptronTFs/{sn}_PYPerceptronTF.mat'
     scipy.io.savemat(path, dict(tfs=tf_total, times=times))
 
     
     
 
 if __name__ == '__main__':
+    start_time = time.time()
     v = [1,2,3,7,8,9,10,11,12,14,15,16,17,18,19,20]
-    for i in [3]:
-        #spatialEM(str(i), non_linearity=False)
-        spatialEM(str(i), non_linearity=True)
+    for i in v:
+        spatialEM(str(i))
     
