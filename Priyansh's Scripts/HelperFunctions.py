@@ -85,7 +85,23 @@ class EEG:
         print(f'Successfully saved EEG data to {path}')
 
 
+    
+def plot_pdf():
+    
+    import scipy.stats as stats
+    import math
 
+    mu = 4
+    variance = 1.5
+    sigma = math.sqrt(variance)
+    x = np.linspace(0, 8, 9)
+    y = 2.5*stats.norm.pdf(x, mu, sigma)
+    plt.plot(x, y)
+    
+    b = np.hstack((init_TF(8,8), init_TF(8,8)[:, 0][:, np.newaxis]))
+    plt.plot(b[4])
+    plt.legend(['Gaussian', 'Sinusoid'])
+    plt.show()
 
 def init_TF(nChans, nBins):
     sinPower = 7
@@ -96,9 +112,8 @@ def init_TF(nChans, nBins):
     pred = np.roll(pred, -3)  # shift the initial basis function
     basisSet = np.empty((nChans, nBins,))
     for c in range(nChans):
-        basisSet[c - 1, :] = np.roll(pred,-c) 
-    #plt.plot(basisSet[0])
-    #plt.show()
+        basisSet[c - 1, :] = np.roll(pred,-c)   
+    
     return basisSet
 
 

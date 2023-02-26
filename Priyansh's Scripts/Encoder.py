@@ -41,35 +41,36 @@ class LinearEncoder(nn.Module):
 class NonLinearEncoder(nn.Module):
     def __init__(self, in_dim=20, out_dim=8):
         super(NonLinearEncoder, self).__init__()
-        self.layers = nn.Sequential(nn.Linear(20, 16),
-                                    nn.Tanh(),
-                                    nn.Linear(16, 12),
+        self.layers = nn.Sequential(nn.BatchNorm1d(20),
                                     nn.ReLU(),
-                                    nn.Linear(12, 8)
-                                    
-                                    )
+                                    nn.Linear(20, 16),
+                                    nn.Sigmoid(),
+                                    nn.Linear(16, 14),
+                                    nn.ReLU(),
+                                    nn.Linear(14, 12),
+                                    nn.ReLU(),
+                                    nn.Linear(12, 10),
+                                    nn.ReLU(),
+                                    nn.Linear(10, 8))
         
     def forward(self, x):
         return self.layers(x)
 
 
 
-def train_encoder(train_eeg=None, train_basis_set=None, test_eeg=None, posBin=None, batch_size=64, epochs=1000, non_linearity=False, random_dataset=False, verbose=False):
+def train_encoder(train_eeg, train_basis_set, test_eeg, train_posBin, test_posBin, batch_size=32, epochs=1500, non_linearity=False, verbose=False):
     
     if (non_linearity):
         model = NonLinearEncoder().cuda()
     else:
         model = LinearEncoder().cuda()
 
-    if random_dataset:
-        train_loader = DataLoader(RandomDataset(), batch_size=16)
-    else:
-        train_loader = DataLoader(EEGDataset(B1=train_eeg, C1=train_basis_set, posBin=posBin), batch_size=batch_size)
+    train_loader = DataLoader(EEGDataset(B1=train_eeg, C1=train_basis_set, posBin=train_posBin), batch_size=batch_size)
     
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=6e-3, betas=(0.9, 0.99))
+    optimizer = optim.Adam(model.parameters(), lr=4e-3)
 
-    train_loss = []
+    train_loss, train_acc, test_acc = [], [], []
     total_train_loss = 0.0
     epoch = 0
     min_loss = np.inf
@@ -87,6 +88,7 @@ def train_encoder(train_eeg=None, train_basis_set=None, test_eeg=None, posBin=No
             loss = criterion(out, labels.cuda())
             loss.backward()
             optimizer.step()
+            
             total_corr += sum(torch.argmax(out, axis=1).cpu()==labels)
             total_examples += labels.shape[0]
 
@@ -98,16 +100,26 @@ def train_encoder(train_eeg=None, train_basis_set=None, test_eeg=None, posBin=No
                 #print('Weights saved at loss ', total_train_loss, 'at epoch ', epoch)
 
         train_loss.append(total_train_loss)
+        train_acc.append(total_corr/total_examples)
+
+        test_out = model(torch.Tensor(test_eeg).cuda()).detach().cpu()
+        
+        test_corr = sum(torch.argmax(test_out, axis=1).cpu().numpy()==test_posBin)
+        test_acc.append(test_corr/test_out.shape[0])
         
         if (verbose):
             sys.stdout.write('\r                                                                   ')
-            sys.stdout.write(f"\rEpoch {epoch}: Training Loss = {train_loss[-1]}, Training Accuracy = {total_corr/total_examples}\n")
+            sys.stdout.write(f"\rEpoch {epoch}: Traini Loss = {train_loss[-1]}, Train loss = {train_acc[-1]}, Test acc = {test_acc[-1]}\n")
             sys.stdout.flush()
-
-        if total_corr==total_examples:
-            break
     #print(f"\nMin loss = {min(train_loss)}")
-    plt.plot(train_loss)
+    fig, ax = plt.subplots(2)
+    ax[0].plot(train_loss)
+    ax[0].set_title('Training Loss')
+    ax[1].plot(train_acc)
+    ax[1].plot(test_acc)
+    ax[1].legend(['Training accuracy', 'Test accuracy'])
+    ax[1].set_ylim([0,1])
+    ax[1].set_title('Training Accuracy')
     plt.show() 
     model.load_state_dict(best_model)
     return model(torch.Tensor(test_eeg).cuda()).detach().cpu()

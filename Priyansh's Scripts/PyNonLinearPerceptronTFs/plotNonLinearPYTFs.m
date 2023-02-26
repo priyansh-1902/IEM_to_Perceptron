@@ -29,17 +29,18 @@ for i = 1:nSubs
     load(fName);
     %fois = ismember(em.bands,'Alpha');
     %t_ctf(i,:,:) = squeeze(mean(mean(em.tfs.total(fois,1:10,:,:,:),4),2)); % grab data, average across iterations (dimension 2) and test blocks (dimension 4). 
-    t_ctf(i, :, :) = squeeze(mean(mean(tfs(1:10, :, :, :),1),3));
+    t_ctf(i, :, :) = squeeze(mean(mean(tfs(1:iteration, :, :, :),1),3));
 end
 
 
 % average data across subjects, mirror the -180 channel at +180
-tctf = squeeze(mean(t_ctf,1)); tctf = [tctf tctf(:,1)];
+tctf = squeeze(mean(t_ctf,1)); tctf = [tctf tctf(:,1)];size(t_ctf)
+
 % Setup plot axes
 x = linspace(-180,180,nChans+1);
 nTimes = size(tctf,1); nBins = length(x);
-X = repmat(x',1,nTimes);
-Y = repmat(times,nBins,1);
+X = repmat(x',1,nTimes);size(X)
+Y = repmat(times,nBins,1);size(Y)
 
 % Plot time-resolved total tuning function
 FigHandle = figure('Position', [100, 100, 480, 180]); % size of the plot
@@ -57,7 +58,7 @@ view(view3d)
 axis([x(1) x(end) times(1) times(end) lim]);
 set(gca,'XTick',[-180:90:180])
 set(gca,'YTick',[-500:100:2000])
-title('Non Linear Perceptron Model (with ReLU)','FontSize',ts)
+title('Non Linear Perceptron Model (with Sigmoid)','FontSize',ts)
 xlabel({'Channel Offset'});
 ylabel('Time (ms)');
 set(get(gca,'xlabel'),'rotation',90); %where angle is in degrees

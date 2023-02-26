@@ -116,7 +116,7 @@ def spatialEM(sn):
                     shiftInd += 1
 
                 tf_total[iter, samp, i, :] = np.mean(C2, axis=0)  # average shifted channel responses
-    fig, ax = plt.subplots()
+    '''fig, ax = plt.subplots()
     plt.grid(False)
     tf = np.mean(np.mean(tf_total, 0), 1).transpose()
     im = ax.imshow(tf, aspect="auto", interpolation="quadric")
@@ -124,7 +124,7 @@ def spatialEM(sn):
     plt.savefig('SpatialEM.jpeg')
     plt.legend()
     plt.show()
-    plt.clf()            
+    plt.clf()'''            
 
 
     
@@ -134,7 +134,7 @@ def spatialEM(sn):
     
 
 if __name__ == '__main__':
-    v = [1,2,3,7,8,9,10,11,12,14,15,16,17,18,19,20]
-    for i in [3]:
+    v = [1,2,3,7]
+    for i in v:
         spatialEM(str(i))
     

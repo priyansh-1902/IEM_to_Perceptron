@@ -45,13 +45,16 @@ def EncodingModel(sn):
         #sys.stdout.write(f"\rTime = {t} in {time.time()-start_time} seconds")
         sys.stdout.flush()
         
-        B1 = train_eeg_total[:10, :, samp]
+        B1 = train_eeg_total[:, :, samp]
+        B1 = B1/B1.sum(axis=1)[:, np.newaxis]
         B2 = test_eeg_total[:, :, samp]
-
+        B2 = B2/B2.sum(axis=1)[:, np.newaxis]
+                
         C2 = train_encoder(train_eeg=B1, 
                               train_basis_set=train_basis_set, 
                               test_eeg=B2,
-                              posBin=train_posBin[:10],
+                              train_posBin=train_posBin,
+                              test_posBin=test_posBin,
                               non_linearity=True,
                               verbose=True)
         C2 = torch.nn.Softmax()(C2).numpy()

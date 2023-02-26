@@ -46,34 +46,27 @@ class LinearPerceptron(nn.Module):
 class TwoLinearPerceptron(nn.Module):
     def __init__(self, in_dim=20, out_dim=8):
         super(TwoLinearPerceptron, self).__init__()
-        self.layer1 = nn.Linear(in_dim, 14)
-        self.layer2 = nn.Linear(14, 8)
+        self.layer1 = nn.Linear(in_dim, 8)
+        
         #torch.nn.init.xavier_normal_(self.layer1.weight)
         #torch.nn.init.xavier_normal_(self.layer2.weight)
     def forward(self, x):
         x = self.layer1(x)
         x = nn.Sigmoid()(x)
-        x = self.layer2(x)
-        x = nn.Sigmoid()(x)
         return x
 
-def train_perceptron(B1=None, C1=None, epochs=100, non_linearity=False, random_dataset=False, verbose=False):
-    
-    if (non_linearity):
-        model = TwoLinearPerceptron().cuda()
-    else:
-        model = LinearPerceptron().cuda()
+def train_perceptron(model, B1=None, C1=None, epochs=30, random_dataset=False, verbose=False):
     
     train_loader = DataLoader(EEGDataset(B1, C1), batch_size=16)
     
     criterion = nn.MSELoss(reduction="sum")
-    optimizer = optim.Adam(model.parameters(), lr=1e-1)
+    optimizer = optim.Adam(model.parameters(), lr=0.5)
 
     train_loss, train_acc = [], [0]
-    total_train_loss = 0.0
+    total_train_loss = np.inf
     epoch = 0
     min_loss = np.inf
-    while(epoch<epochs):
+    while(total_train_loss > 0.5 and epoch<epochs):
         epoch += 1
         total_train_loss = 0.0
         total_corr = 0
@@ -105,7 +98,7 @@ def train_perceptron(B1=None, C1=None, epochs=100, non_linearity=False, random_d
     #print(f"\nMin loss = {min(train_loss)
     plt.show() 
     model.load_state_dict(best_model)
-    return model, train_loss, train_acc
+    return train_loss, train_acc, epoch
 
 
 if __name__ == '__main__':
@@ -115,3 +108,6 @@ if __name__ == '__main__':
     x = np.linalg.lstsq(a, b)
     for _ in x:
         print(_)'''
+
+
+        
