@@ -85,7 +85,26 @@ class EEG:
         print(f'Successfully saved EEG data to {path}')
 
 
-    
+
+
+def mexican_hat():
+    import scipy
+    vec = scipy.signal.ricker(100, 20)
+    idx = np.array([43, 57, 71, 85, 99, 0, 14, 28])
+    return [0, 0, -0.4, 0.8, -0.4, 0, 0, 0]
+
+def init_mexican_hat_tf():
+    basisSet = np.empty((8, 8,))
+
+    for c in range(8):
+        basisSet[c-1, : ] = np.roll(mexican_hat(), -c)
+
+    # for c in range(8):
+    #     plt.plot(basisSet[c])
+    #     plt.show()
+    #     plt.clf()
+    return basisSet
+
 def plot_pdf():
     
     import scipy.stats as stats

@@ -55,18 +55,20 @@ class TwoLinearPerceptron(nn.Module):
         x = nn.Sigmoid()(x)
         return x
 
-def train_perceptron(model, B1=None, C1=None, epochs=30, random_dataset=False, verbose=False):
+def train_perceptron(model, B1=None, C1=None, epochs=10000, random_dataset=False, verbose=False):
     
     train_loader = DataLoader(EEGDataset(B1, C1), batch_size=16)
     
     criterion = nn.MSELoss(reduction="sum")
-    optimizer = optim.Adam(model.parameters(), lr=0.5)
+    optimizer = optim.Adam(model.parameters(), lr=0.2, betas=(0.9, 0.99))
 
     train_loss, train_acc = [], [0]
     total_train_loss = np.inf
     epoch = 0
     min_loss = np.inf
-    while(total_train_loss > 0.5 and epoch<epochs):
+    while(total_train_loss > 0.2 and epoch<epochs):
+        # if epoch==8000:
+        #     optimizer.lr = 0.05
         epoch += 1
         total_train_loss = 0.0
         total_corr = 0
@@ -79,8 +81,8 @@ def train_perceptron(model, B1=None, C1=None, epochs=30, random_dataset=False, v
             loss = criterion(out, labels.cuda())
             loss.backward()
             optimizer.step()
-            total_corr += sum(np.argmax(out.cpu().detach().numpy(), axis=1)==np.argmax(labels.numpy(), axis=1))
-            total_examples += out.shape[0]
+            #total_corr += sum(np.argmax(out.cpu().detach().numpy(), axis=1)==np.argmax(labels.numpy(), axis=1))
+            #total_examples += out.shape[0]
 
             if loss.item() < min_loss:
                 min_loss = loss.item()
@@ -90,15 +92,15 @@ def train_perceptron(model, B1=None, C1=None, epochs=30, random_dataset=False, v
             total_train_loss += loss.item()
 
         train_loss.append(total_train_loss)
-        train_acc.append(total_corr/total_examples)
+        #train_acc.append(total_corr/total_examples)
         if (verbose):
             #sys.stdout.write('\r                                                                   ')
-            sys.stdout.write(f"Epoch {epoch}: Training Loss = {train_loss[-1]}::Training Acc = {train_acc[-1]}\n")
+            sys.stdout.write(f"Epoch {epoch}: Training Loss = {train_loss[-1]}\n")#::Training Acc = {train_acc[-1]}\n")
             sys.stdout.flush()
     #print(f"\nMin loss = {min(train_loss)
     plt.show() 
     model.load_state_dict(best_model)
-    return train_loss, train_acc, epoch
+    return model, train_loss, train_acc, epoch
 
 
 if __name__ == '__main__':

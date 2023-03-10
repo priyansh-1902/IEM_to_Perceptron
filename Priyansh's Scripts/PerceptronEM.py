@@ -14,8 +14,8 @@ from Perceptron import train_perceptron, TwoLinearPerceptron, LinearPerceptron
 from HelperFunctions import init_TF, load_eeg_and_bin, make_blocks
 
 
-np.random.seed(1000)
-torch.manual_seed(0)
+# np.random.seed(1000)
+# torch.manual_seed(0)
 
 def signal_handler(signal, frame):
     print("Do you want to save the data so far?")
@@ -27,12 +27,15 @@ def signal_handler(signal, frame):
         sys.exit(0)
 
 
-signal.signal(signal.SIGINT, signal_handler)
+# signal.signal(signal.SIGINT, signal_handler)
 
 def save_data():
-    path = f'PyNonLinearPerceptronTFs/{sn}_PYPerceptronTF.mat'
-    scipy.io.savemat(path, dict(tfs=tf_total[:, :samp, :, :], times=times[:samp], iteration=iteration))
+    path = f'PyNonLinearPerceptronTFs/{sn}_PYPerceptronTFIter{sys.argv[2]}.mat'
+    
+    scipy.io.savemat(path, dict(tfs=tf_total, C2=C2_total, times=times, iteration=iteration, samp=samp))
 
+
+f = open(sys.argv[3], 'w')
 
 sn = sys.argv[1]
 start_time = time.time()
@@ -53,10 +56,10 @@ window = 4
 Fs = 250
 nFreqs = np.shape(frequencies)[0]
 nElectrodes = 20
-nIter = 10
+nIter = 5
 
-toi_start = 0
-toi_end = 704
+toi_start = 200
+toi_end = 604
 times = np.array([range(toi_start, toi_end, 4)]).squeeze()  # timepoints of interest (range:exclusive)
 nSamps = len(times)
 
@@ -91,6 +94,7 @@ C2_total = np.empty((nIter, nSamps, nBlocks, nBins, nChans))
 
 # Loop through each iteration
 
+
 for iteration in range(nIter):
     print(f"\nProcessing {iteration+1} out of {nIter} iterations at time {time.time()-start_time}")
 
@@ -100,13 +104,13 @@ for iteration in range(nIter):
                                                     nBlocks=nBlocks,
                                                     nTrials=nTrials)
     # ----------------------------------------------------------------------------------------        
+    
     non_linearity = True
     if (non_linearity):
         models = [TwoLinearPerceptron().cuda() for i in range(3)]
     else:
-        models = [LinearPerceptron().cuda() for i in range(3)]
-    
-    
+        model = LinearPerceptron().cuda()
+
     for samp in range(len(times)):
         epochs = []
         losses = []
@@ -134,20 +138,21 @@ for iteration in range(nIter):
             B2 = B2/B2.sum(axis=1)[:, np.newaxis]
             C1 = c[trni, :]  # predicted channel outputs for training data
 
-            train_loss, train_acc, epoch = train_perceptron(model=models[i], B1=B1, C1=C1, verbose=False)  # estimate weight matrix C1*W = B1
+            model, train_loss, train_acc, epoch = train_perceptron(model=models[i], B1=B1, C1=C1, verbose=False)  # estimate weight matrix C1*W = B1
             losses.append(str(round(train_loss[-1], 3)))
             epochs.append(epoch)
-            #training_losses.append(train_loss)
-            #training_accs.append(train_acc)
+            training_losses.append(train_loss)
+            training_accs.append(train_acc)
             C2 = models[i](torch.Tensor(B2).cuda()).detach().cpu().numpy()# estimate channel responses W'*C2'=B2'
-            
-            #W_calc = np.linalg.lstsq(B1, C1)
-            #W = W_calc[0]
-            
-            #C2 = np.dot(B2, W)
+
+            # W_calc = np.linalg.lstsq(B1, C1)
+            # W = W_calc[0]
+           
+            # C2 = np.dot(B2, W)
+
             # Data from B1: 16 x 20; B2: 8 x 20; C1: 16 x 8; W: 8 x 20;
             C2_total[iteration, samp, i, :, :] = C2  # save the unshifted channel responses
-            #print(np.argmax(C2, axis=1))
+            
             # shift eegs to common center
             shiftInd = -4
             for ii in range(1, C2.shape[0]+1):
@@ -160,17 +165,21 @@ for iteration in range(nIter):
         
         s = f"\rTrained {t} at {time.time()-start_time} seconds for {epochs} epochs and to a loss of {losses}"
         print(s)
+        f.write(s)
 
-        '''fig, axs = plt.subplots(3, 2)
-        axs[0,0].plot(np.array(training_accs)[0])
-        axs[0,1].plot(training_losses[0])
-        axs[1,0].plot(training_accs[1])
-        axs[1,1].plot(training_losses[1])
-        axs[2,0].plot(training_accs[2])
-        axs[2,1].plot(training_losses[2])
-        plt.show()'''
+        # fig, axs = plt.subplots(3, 3)
+        # axs[0,0].plot(np.array(training_accs)[0])
+        # axs[0,1].plot(training_losses[0][-100:])
+        # axs[0,2].plot(training_losses[0])
+        # axs[1,0].plot(training_accs[1])
+        # axs[1,1].plot(training_losses[1][-100:])
+        # axs[1,2].plot(training_losses[1])
+        # axs[2,0].plot(training_accs[2])
+        # axs[2,1].plot(training_losses[2][-100:])
+        # axs[2,2].plot(training_losses[2])
+        # plt.show()
 
 
-
+save_data()
 print(f"Completed at {time.time()-start_time}")
 

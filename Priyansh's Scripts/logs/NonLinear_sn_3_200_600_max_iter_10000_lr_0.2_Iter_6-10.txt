@@ -1,0 +1,1 @@
+Trained 200 at 52.59367537498474 seconds for [10000, 10000, 10000] epochs and to a loss of ['0.844', '0.831', '0.918']Trained 204 at 117.66811776161194 seconds for [10000, 10000, 10000] epochs and to a loss of ['0.778', '0.773', '0.769']Trained 208 at 181.5712752342224 seconds for [10000, 10000, 10000] epochs and to a loss of ['0.764', '0.762', '0.739']

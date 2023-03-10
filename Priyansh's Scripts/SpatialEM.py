@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore")
 import scipy
 import matplotlib.pyplot as plt
 
-from HelperFunctions import init_TF, load_eeg_and_bin, make_blocks
+from HelperFunctions import init_TF, load_eeg_and_bin, make_blocks, init_mexican_hat_tf
 
 np.random.seed(1000)
 
@@ -37,7 +37,8 @@ def spatialEM(sn):
     nIter = 10
     
     # Specify basis set
-    basisSet = init_TF(nChans, nBins)
+    #basisSet = init_mexican_hat_tf()
+    basisSet = init_TF(8,8)
 
     # ------------------------- Grab Data ------------------------------------
     eeg_path = os.path.dirname(os.getcwd())+f"\\EEG\\{sn}_EEGfilt"
@@ -97,13 +98,19 @@ def spatialEM(sn):
                 B2 = dt[tsti, :]  # test data
                 C1 = c[trni, :]  # predicted channel outputs for training data
                 
-                W_calculation = np.linalg.lstsq(C1, B1, rcond=None)  # estimate weight matrix C1*W = B1
+                # W_calculation = np.linalg.lstsq(C1, B1, rcond=None)  # estimate weight matrix C1*W = B1
                 
-                W = W_calculation[0]
+                # W = W_calculation[0]
                 
-                C2_calculation = np.linalg.lstsq(W.transpose(), B2.transpose(), rcond=None)# estimate channel responses W'*C2'=B2'
+                # C2_calculation = np.linalg.lstsq(W.transpose(), B2.transpose(), rcond=None)# estimate channel responses W'*C2'=B2'
             
-                C2 = C2_calculation[0].transpose()
+                # C2 = C2_calculation[0].transpose()
+
+
+                W_calculation = np.linalg.lstsq(B1, C1)
+                W = W_calculation[0]
+
+                C2 = np.dot(B2, W)
                 
                 # Data from B1: 16 x 20; B2: 8 x 20; C1: 16 x 8; W: 8 x 20;
                 C2_total[iter, samp, i, :, :] = C2  # save the unshifted channel responses
@@ -116,7 +123,12 @@ def spatialEM(sn):
                     shiftInd += 1
 
                 tf_total[iter, samp, i, :] = np.mean(C2, axis=0)  # average shifted channel responses
-    '''fig, ax = plt.subplots()
+    
+    
+    
+    
+    
+    fig, ax = plt.subplots()
     plt.grid(False)
     tf = np.mean(np.mean(tf_total, 0), 1).transpose()
     im = ax.imshow(tf, aspect="auto", interpolation="quadric")
@@ -124,7 +136,7 @@ def spatialEM(sn):
     plt.savefig('SpatialEM.jpeg')
     plt.legend()
     plt.show()
-    plt.clf()'''            
+    plt.clf()       
 
 
     
@@ -135,6 +147,6 @@ def spatialEM(sn):
 
 if __name__ == '__main__':
     v = [1,2,3,7]
-    for i in v:
+    for i in [2]:
         spatialEM(str(i))
     
