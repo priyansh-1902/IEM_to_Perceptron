@@ -99,10 +99,6 @@ def init_mexican_hat_tf():
     for c in range(8):
         basisSet[c-1, : ] = np.roll(mexican_hat(), -c)
 
-    # for c in range(8):
-    #     plt.plot(basisSet[c])
-    #     plt.show()
-    #     plt.clf()
     return basisSet
 
 def plot_pdf():
@@ -206,7 +202,7 @@ def make_blocks(tois, eeg, posBin, nBlocks, nTrials, nBins=8):
     blockDat_total = np.array(blockDat_total)
     blockDat_evoked = np.array(blockDat_evoked)
 
-    return blockDat_evoked, blockDat_total
+    return blockDat_total
 
     
 def make_train_test_sets(tois, eeg, basisSet, posBin, nTrials, split_ratio=0.9, nBins=8):
@@ -231,12 +227,14 @@ def make_train_test_sets(tois, eeg, basisSet, posBin, nTrials, split_ratio=0.9, 
     return train_eeg_total, train_basis_set, test_eeg_total, test_posBin, train_posBin
 
 
-def plot_C2(C2):
-    x, y = 2,4
-    fig, axs = plt.subplots(x, y)
-    for i in range(x):
-        for j in range(y):
-            axs[i, j].plot(C2[(i*x)+j])
+def plot_training_losses(training_losses):
+    fig, axs = plt.subplots(3, 2)
+    axs[0,0].plot(training_losses[0][-100:])
+    axs[0,1].plot(training_losses[0])
+    axs[1,0].plot(training_losses[1][-100:])
+    axs[1,1].plot(training_losses[1])
+    axs[2,0].plot(training_losses[2][-100:])
+    axs[2,1].plot(training_losses[2])
     plt.show()
     
                 
