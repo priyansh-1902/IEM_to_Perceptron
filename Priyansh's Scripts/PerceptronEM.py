@@ -4,25 +4,52 @@ import os
 import warnings
 import scipy
 import time
+from datetime import datetime
 import torch
-import matplotlib.pyplot as plt
 
-from Perceptron import train_perceptron_cpu, NonLinearPerceptron, LinearPerceptron
+from Perceptron import train_perceptron_cpu
 
-from HelperFunctions import init_TF, load_eeg_and_bin, make_blocks, plot_training_losses
+from HelperFunctions import init_TF, load_eeg_and_bin, make_blocks
+
+
 
 warnings.filterwarnings("ignore")
 # np.random.seed(1000)
 # torch.manual_seed(0)
 
 def save_data(sn, tf_total, C2_total, times):
-    path = f'PyNonLinearPerceptronTFs/{sn}_PYPerceptronTFIter{sys.argv[2]}.mat'
+    path = f'PyNonLinearPerceptronTFs/{sn}_PYPerceptronTFIter1-5_0_200.mat'
     scipy.io.savemat(path, dict(tfs=tf_total, C2=C2_total, times=times))
 
 
-def PerceptronEM(sn, nIter, start_time, end_time):
+def f(B1, C1, B2, C2_total, tf_total, iteration, samp, i, t, queue=None):
+    model, train_loss, epoch = train_perceptron_cpu(B1=B1, C1=C1, verbose=False)  # estimate weight matrix C1*W = B1
+
+    
+    C2 = model(torch.Tensor(B2)).detach().numpy()# estimate channel responses W'*C2'=B2'
+
+    # Data from B1: 16 x 20; B2: 8 x 20; C1: 16 x 8; W: 8 x 20;
+    
+    if queue!=None:
+        queue.put((C2, iteration, samp, i))
+
+    else:
+        C2_total[iteration, samp, i, :, :] = C2  # save the unshifted channel responses
+    
+        # shift eegs to common center
+        shiftInd = -4
+        for ii in range(1, C2.shape[0]+1):
+            C2[ii-1, :] = np.roll(C2[ii-1, :], shiftInd)
+            shiftInd += 1
+
+        tf_total[iteration, samp, i, :] = np.mean(C2, axis=0) /np.linalg.norm(np.mean(C2, axis=0)) # average shifted channel responses
+    print(f"{datetime.now().strftime('%H:%M:%S')}: Trained {t} for {epoch} epochs upto a loss of {round(train_loss[-1], 5)}")
+ 
+    
+
+
+def PerceptronEM(sn, nIter, start_time, end_time, startTime, tf_total=None, C2_total=None):
     print('Running on candidate', sn)
-    startTime = time.time()
 
     nChans, nBins, nElectrodes = 8, 8, 20  # No. of channels
     nBlocks = 3  # No. of blocks for cross-validation
@@ -45,8 +72,11 @@ def PerceptronEM(sn, nIter, start_time, end_time):
     # ------------------------------------------------------------------------
 
     # Preallocate Matrices
-    tf_total = np.empty((nIter, nSamps, nBlocks, nChans))
-    C2_total = np.empty((nIter, nSamps, nBlocks, nBins, nChans))
+    if tf_total==None:
+        tf_total = np.empty((nIter, nSamps, nBlocks, nChans))
+
+    if C2_total==None:
+        C2_total = np.empty((nIter, nSamps, nBlocks, nBins, nChans))
 
     # Data from eeg_evoked and eeg_total: data[x, y, z]
     # 0 <= x <= 1198 0 <= y <= 19 0 <= z <= 687
@@ -61,14 +91,9 @@ def PerceptronEM(sn, nIter, start_time, end_time):
                                                         nBlocks=nBlocks,
                                                         nTrials=nTrials)
         # ----------------------------------------------------------------------------------------        
-        
-        non_linearity = True
-        if (non_linearity):
-            models = [NonLinearPerceptron() for i in range(3)]
-        else:
-            model = LinearPerceptron().cuda()
 
-        for samp in [90]:
+
+        for samp in range(len(times)):
             epochs = []
             losses = []
             t = times[samp]
@@ -91,29 +116,10 @@ def PerceptronEM(sn, nIter, start_time, end_time):
                 B2 = B2/B2.sum(axis=1)[:, np.newaxis]
                 C1 = c[trni, :]  # predicted channel outputs for training data
 
-                models[i], train_loss, epoch = train_perceptron_cpu(model=models[i], B1=B1, C1=C1, verbose=False)  # estimate weight matrix C1*W = B1
-                
-                losses.append(str(round(train_loss[-1], 3)))
-                epochs.append(epoch)
-                training_losses.append(train_loss)
-                
-                C2 = models[i](torch.Tensor(B2)).detach().numpy()# estimate channel responses W'*C2'=B2'
+                f(B1, C1, B2, C2_total, tf_total, iteration, samp, i, t)
 
-                # Data from B1: 16 x 20; B2: 8 x 20; C1: 16 x 8; W: 8 x 20;
-                C2_total[iteration, samp, i, :, :] = C2  # save the unshifted channel responses
-                
-                # shift eegs to common center
-                shiftInd = -4
-                for ii in range(1, C2.shape[0]+1):
-                    C2[ii-1, :] = np.roll(C2[ii-1, :], shiftInd)
-                    shiftInd += 1
-
-                tf_total[iteration, samp, i, :] = np.mean(C2, axis=0) /np.linalg.norm(np.mean(C2, axis=0)) # average shifted channel responses
             
-            print(f"\rTrained {t} at {time.time()-startTime} seconds for {epochs} epochs and to a loss of {losses}")
- 
-
-            plot_training_losses(training_losses)
+            # plot_training_losses(training_losses)
 
 
     # save_data()
@@ -121,5 +127,6 @@ def PerceptronEM(sn, nIter, start_time, end_time):
 
 
 if __name__ == '__main__':
-    PerceptronEM(sn=sys.argv[1], nIter=1, start_time=200, end_time=600)
+    startTime=time.time()
+    PerceptronEM(sn=sys.argv[1], nIter=1, startTime=time.time(), start_time=200, end_time=232)
 

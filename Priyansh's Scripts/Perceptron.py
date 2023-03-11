@@ -37,8 +37,19 @@ class NonLinearPerceptron(nn.Module):
         x = self.layer1(x)
         x = nn.Sigmoid()(x)
         return x
+    
 
-def train_perceptron_gpu(model, B1=None, C1=None, max_epochs=10000, verbose=False):
+class NonLinearMLP(nn.Module):
+    def __init__(self, in_dim=20, out_dim=8):
+        super(NonLinearMLP, self).__init__()
+        self.layer1 = nn.Linear(in_dim, 8)
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = nn.Sigmoid()(x)
+        return x
+
+def train_perceptron_gpu(model, B1=None, C1=None, max_epochs=10, verbose=False):
     
     train_loader = DataLoader(EEGDataset(B1, C1), batch_size=16)
     
@@ -77,9 +88,9 @@ def train_perceptron_gpu(model, B1=None, C1=None, max_epochs=10000, verbose=Fals
 
 
 
-def train_perceptron_cpu(model, B1=None, C1=None, max_epochs=10000, verbose=False):
+def train_perceptron_cpu(B1=None, C1=None, max_epochs=10000, verbose=False):
     
-    model = model.cpu()
+    model = NonLinearPerceptron()
     train_loader = DataLoader(EEGDataset(B1, C1), batch_size=16)
     
     criterion = nn.MSELoss(reduction="sum")
