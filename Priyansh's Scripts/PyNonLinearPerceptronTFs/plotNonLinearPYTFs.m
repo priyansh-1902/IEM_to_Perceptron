@@ -9,7 +9,7 @@ root = pwd; out = 'AnalysisScripts';
 %dRoot = [root(1:end-length(out)),'sity of Toronto/IEM/data/'];
 
 % specify filename of data to plot
-name = '_PYPerceptronTFIter1-2.mat';
+name = '_PYPerceptronTF.mat';
 
 % Plot specs
 nChans = 8; % number of location-selective channels
