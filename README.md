@@ -7,19 +7,38 @@ We use Non Linear Perceptrons to do the same.
 
 ### Channel Tuning Functions
 
-To each spatial location we associate a tuning function. For the experimental data presented in [[1]](#1), we have 8 locations and therefore 8 corresponding channels (Fig 1a.). <br> 
-The channel tuning function for each of these channels is 
+For the experimental data presented in [[1]](#1), we have 8 spatial locations called channels. <br> 
+To each spatial location we associate a tuning function. The channel tuning function is <br>
+$$
+\begin{aligned}
+R = sin^7(0.5(\theta - \theta_c + \pi))
+\end{aligned}
+$$
+where $\theta_c$ is the channel for which we are considering the TF. <br>
 
 <p align="center">
-  <img src="./Figures/Rolled Channel Tuning Functions.jpeg" alt="Rolled Channel Tuning Functions" width="325">
-  <img src="./Figures/Channel Tuning Function.jpeg" alt="Channel Tuning Function" width="325">
+    <img src="./Figures/Spatial Channels.png" alt="Channel Tuning Function" width="255">
+    <img src="./Figures/Channel Tuning Function.jpeg" alt="Channel Tuning Function" width="325">
+    <img src="./Figures/Rolled Channel Tuning Functions.jpeg" alt="Rolled Channel Tuning Functions" width="325"><br>
 </p>
 
 ### Inverted Encoding Models (Forward Computation + Inversion of Weight Matrix)
-$B_1 \rightarrow$ EEG Matrix ($n$ electrodes $\times$ $m$ trials) <br>
-$C_1 \rightarrow$ Channel Tuning Functions ($k$ channels $\times$ $m$ trials)
-### Non Linear Perceptrons (Forward Computation + Back Propogation to compute weights)
 
+$B_1 \rightarrow$ Train EEG Matrix ($m$ electrodes $\times$ $n_1$ measurements) <br>
+$B_2 \rightarrow$ Test EEG Matrix ($m$ electrodes $\times$ $n_2$ measurements) <br>
+$W \rightarrow$ Weight Matrix ($m$ electrodes × $k$ channels)
+$C_1 \rightarrow$ Channel Responses based on CTFs ($k$ channels $\times$ $n_1$ measurements) <br>
+$C_1 \rightarrow$ Predicted Channel Responses ($k$ channels $\times$ $n_2$ measurements) <br>
+
+$$
+\begin{aligned}
+B_1 = WC_1 \\
+\widehat{W} = B_1C_1^T(C_1C_1^T)^{-1} \\
+\widehat{C_2} = (\widehat{W}^T\widehat{W})^{-1}\widehat{W}^TB_2
+\end{aligned}
+$$
+
+### Non Linear Perceptrons (Forward Computation + Back Propogation to compute weights)
 
 
 ## Dependencies
