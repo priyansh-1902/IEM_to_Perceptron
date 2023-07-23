@@ -9,6 +9,7 @@ We use Non Linear Perceptrons to do the same.
 
 For the experimental data presented in [[1]](#1), we have 8 spatial locations called channels. <br> 
 To each spatial location we associate a tuning function. The channel tuning function is <br>
+
 $$
 \begin{aligned}
 R = sin^7(0.5(\theta - \theta_c + \pi))
