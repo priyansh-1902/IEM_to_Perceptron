@@ -15,6 +15,7 @@ $$
 R = sin^7(0.5(\theta - \theta_c + \pi))
 \end{aligned}
 $$
+
 where $\theta_c$ is the channel for which we are considering the TF. <br>
 
 <p align="center">
@@ -23,13 +24,13 @@ where $\theta_c$ is the channel for which we are considering the TF. <br>
     <img src="./Figures/Rolled Channel Tuning Functions.jpeg" alt="Rolled Channel Tuning Functions" width="325"><br>
 </p>
 
-### Inverted Encoding Models (Forward Computation + Inversion of Weight Matrix)
+### Inverted Encoding Models (Forward Computation + Inversion of Weight Matrix) [[1]](#1)
 
 $B_1 \rightarrow$ Train EEG Matrix ($m$ electrodes $\times$ $n_1$ measurements) <br>
 $B_2 \rightarrow$ Test EEG Matrix ($m$ electrodes $\times$ $n_2$ measurements) <br>
-$W \rightarrow$ Weight Matrix ($m$ electrodes × $k$ channels)
+$W \rightarrow$ Weight Matrix ($m$ electrodes × $k$ channels) <br>
 $C_1 \rightarrow$ Channel Responses based on CTFs ($k$ channels $\times$ $n_1$ measurements) <br>
-$C_1 \rightarrow$ Predicted Channel Responses ($k$ channels $\times$ $n_2$ measurements) <br>
+$C_2 \rightarrow$ Predicted Channel Responses ($k$ channels $\times$ $n_2$ measurements) <br>
 
 $$
 \begin{aligned}
@@ -41,6 +42,10 @@ $$
 
 ### Non Linear Perceptrons (Forward Computation + Back Propogation to compute weights)
 
+<br>
+Directly compute mapping from EEG matrix to channel responses
+
+<br>
 
 ## Dependencies
 ```
@@ -51,10 +56,6 @@ seaborn, matplotlib
 Matlab R2023b + Signal Processing Toolbox
 ```
 
-## Installation
-
-
-
 ## Downloading EEG and Behaviour Data
 
 ## How to use
@@ -63,6 +64,10 @@ To visualize spatial attention as heat maps
 ```
 python run.py --model LinearPerceptron --numIterations 10 --startTime 0 --endTime 600 --verbose False --saveHeatMap "./trial.jpeg"
 ```
+
+<p align="center">
+    <img src="./Figures/Candidate1-3.png" alt="Channel Tuning Function" width="650">
+</p>
 
 ## References
 <a id="1">[1]</a> 

@@ -40,60 +40,24 @@ class NonLinearPerceptron(nn.Module):
     
 
 class NonLinearMLP(nn.Module):
-    def __init__(self, in_dim=20, out_dim=8):
+    def __init__(self):
         super(NonLinearMLP, self).__init__()
-        self.layer1 = nn.Linear(in_dim, 8)
+        self.layer1 = nn.Linear(20, 14)
+        self.layer2 = nn.Linear(14, 8)
 
     def forward(self, x):
         x = self.layer1(x)
         x = nn.Sigmoid()(x)
+        x = self.layer2(x)
+        x = nn.Sigmoid()(x)
         return x
 
-def train_perceptron_gpu(model, B1=None, C1=None, max_epochs=10, verbose=False):
+def train_perceptron_cpu(_model, B1=None, C1=None, max_epochs=300, verbose=False):
     
+    model = _model()
     train_loader = DataLoader(EEGDataset(B1, C1), batch_size=16)
     
-    criterion = nn.MSELoss(reduction="sum")
-    optimizer = optim.Adam(model.parameters(), lr=0.2, betas=(0.9, 0.99))
-
-    train_loss, train_acc = [], [0]
-    total_train_loss = np.inf
-    epoch = 0
-    min_loss = np.inf
-    while(total_train_loss > 0.2 and epoch<max_epochs):
-        epoch += 1
-        total_train_loss = 0.0
-
-        for data, labels in train_loader:
-            
-            optimizer.zero_grad()
-            out = model(data.cuda())
-            loss = criterion(out, labels.cuda())
-            loss.backward()
-            optimizer.step()
-
-            if loss.item() < min_loss:
-                min_loss = loss.item()
-                best_model = model.state_dict()
-
-            total_train_loss += loss.item()
-
-        train_loss.append(total_train_loss)
-
-        if (verbose):
-            sys.stdout.write(f"Epoch {epoch}: Training Loss = {train_loss[-1]}\n")
-
-    model.load_state_dict(best_model)
-    return model, train_loss, train_acc, epoch
-
-
-
-def train_perceptron_cpu(B1=None, C1=None, max_epochs=10000, verbose=False):
-    
-    model = NonLinearPerceptron()
-    train_loader = DataLoader(EEGDataset(B1, C1), batch_size=16)
-    
-    criterion = nn.MSELoss(reduction="sum")
+    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.2, betas=(0.9, 0.99))
 
     train_loss = []
@@ -128,7 +92,7 @@ def train_perceptron_cpu(B1=None, C1=None, max_epochs=10000, verbose=False):
 
 
 if __name__ == '__main__':
-    print(train_perceptron_gpu(epochs=100, random_dataset=True, non_linearity=True, verbose=False)[1])
+    print(train_perceptron_cpu(epochs=100, random_dataset=True, non_linearity=True, verbose=False)[1])
 
 
         

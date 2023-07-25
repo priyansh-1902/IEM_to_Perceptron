@@ -128,7 +128,7 @@ def init_TF(nChans, nBins):
     basisSet = np.empty((nChans, nBins,))
     for c in range(nChans):
         basisSet[c - 1, :] = np.roll(pred,-c)   
-    
+
     return basisSet
 
 
@@ -237,5 +237,18 @@ def plot_training_losses(training_losses):
     axs[2,1].plot(training_losses[2])
     plt.show()
     
+def plot_tfs(tf_total, times, save_path=None):
+    tf_total = np.concatenate([tf_total, np.expand_dims(tf_total[:, :, :, -1], axis=-1)], axis=3)
+    fig, ax = plt.subplots()
+    tf = np.mean(np.mean(tf_total, 0), 1).transpose()
+    im = ax.imshow(tf, aspect="auto", interpolation="quadric", cmap='viridis')
+    plt.yticks(np.arange(9), ["$-180\degree$", "$-135\degree$", "$-90\degree$", "$-45\degree$", "$0\degree$", "$45\degree$", "$90\degree$", "$135\degree$", "$180\degree$"])
+    if times.size>100:
+        plt.xticks(np.where((times % 100 == 0))[0], np.where((times % 100 == 0))[0]*4)
+    fig.set_size_inches(20, 3.5)
+    if save_path:
+        plt.savefig(save_path)
+    plt.show()
+    plt.clf()
                 
     
