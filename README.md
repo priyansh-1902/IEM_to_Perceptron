@@ -3,7 +3,7 @@
 ## Basic Overview
 
 Covert Visual attention can be tracked by alpha-band activity. [[1]](#1) Inverted Encoding Models have been used before to track spatial attention. <br>
-We use Non Linear Perceptrons to do the same.
+[We use Non Linear Perceptrons to do the same.](https://www.canva.com/design/DAFeo9yydrM/7WTIEaKemt3vgVjLSBtl3Q/edit?analyticsCorrelationId=985cd9fb-fc1f-451f-86ba-687e14eee01b)
 
 ### Channel Tuning Functions
 
